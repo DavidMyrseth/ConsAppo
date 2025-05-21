@@ -9,13 +9,20 @@
 
     <TabBar>
         <ShellContent
-    Title="user"
-    ContentTemplate="{DataTemplate local:ProfilePage}"
-    Icon="{OnPlatform 'user.png'}" />
-        <ShellContent
             Title="Home"
             ContentTemplate="{DataTemplate local:MainPage}"
             Icon="{OnPlatform 'home.png'}" />
-        
+
+        <ShellContent
+            Title="Profile"
+            ContentTemplate="{DataTemplate local:ProfilePage}"
+            Icon="{OnPlatform 'user.png'}"
+            IsVisible="{Binding IsLoggedIn}" />
+
+        <ShellContent
+            Title="Requests"
+            ContentTemplate="{DataTemplate local:TeacherConsultationsPage}"
+            Icon="{OnPlatform 'requests.png'}"
+            IsVisible="{Binding IsTeacher}" />
     </TabBar>
 </Shell>

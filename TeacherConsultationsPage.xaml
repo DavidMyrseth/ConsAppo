@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Teku.TeacherConsultationsPage"
+             Title="TeacherConsultationsPage">
+    <ScrollView>
+        <VerticalStackLayout x:Name="RequestsStack" Padding="15" Spacing="10">
+            
+            
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

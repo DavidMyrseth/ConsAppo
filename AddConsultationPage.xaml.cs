@@ -9,14 +9,9 @@ namespace Teku
 
         public AddConsultationPage(Action<Consultation> addCallback)
         {
-            InitializeComponent(); // XAML инициализация
+            InitializeComponent();
             _addCallback = addCallback;
-
-            // Пример автозаполнения имени преподавателя, если авторизация есть
-            if (AuthService.CurrentUser != null)
-            {
-                TeacherEntry.Text = AuthService.CurrentUser.Username;
-            }
+            TeacherEntry.Text = AuthService.CurrentUser.Username;
         }
 
         private async void OnAddClicked(object sender, EventArgs e)
