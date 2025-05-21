@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:Teku"
+    x:Class="Teku.AppShell"
+    Shell.FlyoutBehavior="Disabled"
+    Title="Teku">
+
+    <TabBar>
+        <ShellContent
+    Title="user"
+    ContentTemplate="{DataTemplate local:ProfilePage}"
+    Icon="{OnPlatform 'user.png'}" />
+        <ShellContent
+            Title="Home"
+            ContentTemplate="{DataTemplate local:MainPage}"
+            Icon="{OnPlatform 'home.png'}" />
+        
+    </TabBar>
+</Shell>
