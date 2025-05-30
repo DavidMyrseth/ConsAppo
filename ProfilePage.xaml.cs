@@ -1,4 +1,5 @@
 using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
 namespace Teku
 {
@@ -20,7 +21,7 @@ namespace Teku
         {
             MainStack.Children.Clear();
 
-            if (AuthService.CurrentUser.Role == UserRole.Guest)
+            if (AuthService.CurrentUser?.Role == UserRole.Guest)
             {
                 ShowGuestUI();
             }
@@ -37,14 +38,15 @@ namespace Teku
                 Text = "Welcome Guest",
                 FontSize = 30,
                 FontAttributes = FontAttributes.Bold,
-                Margin = new Thickness(10, 20, 10, 5)
+                HorizontalOptions = LayoutOptions.Center,
+                Margin = new Thickness(0, 20)
             };
 
             var buttonStack = new HorizontalStackLayout
             {
-                Spacing = 10,
+                Spacing = 20,
                 HorizontalOptions = LayoutOptions.Center,
-                Margin = new Thickness(10, 0)
+                Margin = new Thickness(0, 30)
             };
 
             var registerButton = new Button
@@ -54,23 +56,25 @@ namespace Teku
                 TextColor = Colors.Black,
                 BorderColor = Colors.Black,
                 BorderWidth = 1,
-                CornerRadius = 5,
-                WidthRequest = 120
+                CornerRadius = 10,
+                WidthRequest = 150,
+                HeightRequest = 50
             };
             registerButton.Clicked += OnRegisterClicked;
 
-            var signInButton = new Button
+            var loginButton = new Button
             {
                 Text = "Sign In",
                 BackgroundColor = Colors.Black,
                 TextColor = Colors.White,
-                CornerRadius = 5,
-                WidthRequest = 120
+                CornerRadius = 10,
+                WidthRequest = 150,
+                HeightRequest = 50
             };
-            signInButton.Clicked += OnSignInClicked;
+            loginButton.Clicked += OnLoginClicked;
 
             buttonStack.Children.Add(registerButton);
-            buttonStack.Children.Add(signInButton);
+            buttonStack.Children.Add(loginButton);
 
             MainStack.Children.Add(titleLabel);
             MainStack.Children.Add(buttonStack);
@@ -78,63 +82,88 @@ namespace Teku
 
         private void ShowAuthenticatedUI()
         {
+            var user = AuthService.CurrentUser;
+
             var titleLabel = new Label
             {
-                Text = $"Welcome {AuthService.CurrentUser.Username}",
+                Text = $"Welcome, {user.Username}!",
                 FontSize = 30,
                 FontAttributes = FontAttributes.Bold,
-                Margin = new Thickness(10, 20, 10, 5)
+                HorizontalOptions = LayoutOptions.Center,
+                Margin = new Thickness(0, 20)
             };
 
-            var roleLabel = new Label
+            var userInfoStack = new VerticalStackLayout
             {
-                Text = $"Role: {AuthService.CurrentUser.Role}",
-                FontSize = 16,
-                Margin = new Thickness(10, 0, 10, 20)
+                Spacing = 10,
+                Margin = new Thickness(20, 30)
             };
+
+            userInfoStack.Children.Add(new Label
+            {
+                Text = $"Role: {user.Role}",
+                FontSize = 18
+            });
+
+            if (!string.IsNullOrEmpty(user.FullName))
+            {
+                userInfoStack.Children.Add(new Label
+                {
+                    Text = $"Full Name: {user.FullName}",
+                    FontSize = 18
+                });
+            }
+
+            if (!string.IsNullOrEmpty(user.Email))
+            {
+                userInfoStack.Children.Add(new Label
+                {
+                    Text = $"Email: {user.Email}",
+                    FontSize = 18
+                });
+            }
+
+            if (user.Role == UserRole.Student && !string.IsNullOrEmpty(user.Group))
+            {
+                userInfoStack.Children.Add(new Label
+                {
+                    Text = $"Group: {user.Group}",
+                    FontSize = 18
+                });
+            }
 
             var logoutButton = new Button
             {
                 Text = "Logout",
                 BackgroundColor = Colors.Red,
                 TextColor = Colors.White,
-                CornerRadius = 5,
-                WidthRequest = 120,
+                CornerRadius = 10,
+                WidthRequest = 200,
+                HeightRequest = 50,
                 HorizontalOptions = LayoutOptions.Center,
-                Margin = new Thickness(0, 20)
+                Margin = new Thickness(0, 40)
             };
             logoutButton.Clicked += OnLogoutClicked;
 
             MainStack.Children.Add(titleLabel);
-            MainStack.Children.Add(roleLabel);
+            MainStack.Children.Add(userInfoStack);
             MainStack.Children.Add(logoutButton);
+        }
 
-            // Add role-specific UI
-            if (AuthService.CurrentUser.Role == UserRole.Student)
-            {
-                MainStack.Children.Add(new Label
-                {
-                    Text = $"Group: {AuthService.CurrentUser.Group}",
-                    FontSize = 16,
-                    Margin = new Thickness(10, 0, 10, 20)
-                });
-            }
+        private async void OnLoginClicked(object sender, EventArgs e)
+        {
+            await Shell.Current.Navigation.PushModalAsync(new LoginPage());
         }
 
         private async void OnRegisterClicked(object sender, EventArgs e)
         {
-            await Navigation.PushModalAsync(new RegisterPage());
+            await Shell.Current.Navigation.PushModalAsync(new RegisterPage());
         }
 
-        private async void OnSignInClicked(object sender, EventArgs e)
-        {
-            await Navigation.PushModalAsync(new LoginPage());
-        }
-
-        private void OnLogoutClicked(object sender, EventArgs e)
+        private async void OnLogoutClicked(object sender, EventArgs e)
         {
             AuthService.Logout();
-            BuildUI();
+            await Shell.Current.GoToAsync("//MainPage");
         }
     }
 }

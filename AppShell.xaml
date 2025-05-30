@@ -1,28 +1,30 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<Shell
-    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:Teku"
-    x:Class="Teku.AppShell"
-    Shell.FlyoutBehavior="Disabled"
-    Title="Teku">
+<Shell xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:local="clr-namespace:Teku"
+       x:Class="Teku.AppShell"
+       Title="Teku"
+       xmlns:converters="clr-namespace:Teku.Converters">
 
-    <TabBar>
-        <ShellContent
-            Title="Home"
-            ContentTemplate="{DataTemplate local:MainPage}"
-            Icon="{OnPlatform 'home.png'}" />
+    <Shell.Resources>
+        <converters:InverseBooleanConverter x:Key="InverseBoolConverter"/>
+    </Shell.Resources>
 
-        <ShellContent
-            Title="Profile"
-            ContentTemplate="{DataTemplate local:ProfilePage}"
-            Icon="{OnPlatform 'user.png'}"
-            IsVisible="{Binding IsLoggedIn}" />
+    <!-- Guest Tabs -->
+    <TabBar x:Name="guestTabs" IsVisible="{Binding IsLoggedIn, Converter={StaticResource InverseBoolConverter}}">
+        <ShellContent Title="Login" Route="LoginPage" ContentTemplate="{DataTemplate local:LoginPage}" />
+        <ShellContent Title="Register" Route="RegisterPage" ContentTemplate="{DataTemplate local:RegisterPage}" />
+    </TabBar>
 
-        <ShellContent
-            Title="Requests"
-            ContentTemplate="{DataTemplate local:TeacherConsultationsPage}"
-            Icon="{OnPlatform 'requests.png'}"
-            IsVisible="{Binding IsTeacher}" />
+    <!-- Teacher Tabs -->
+    <TabBar x:Name="teacherTabs" IsVisible="{Binding IsTeacher}">
+        <ShellContent Title="Home" Route="MainPage" ContentTemplate="{DataTemplate local:MainPage}" />
+        <ShellContent Title="Consultations" Route="TeacherConsultationsPage" ContentTemplate="{DataTemplate local:TeacherConsultationsPage}" />
+        <ShellContent Title="Profile" Route="ProfilePage" ContentTemplate="{DataTemplate local:ProfilePage}" />
+    </TabBar>
+
+    <!-- Student Tabs -->
+    <TabBar x:Name="studentTabs" IsVisible="{Binding IsStudent}">
+        <ShellContent Title="Home" Route="MainPage" ContentTemplate="{DataTemplate local:MainPage}" />
+        <ShellContent Title="Profile" Route="ProfilePage" ContentTemplate="{DataTemplate local:ProfilePage}" />
     </TabBar>
 </Shell>

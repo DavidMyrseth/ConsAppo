@@ -1,6 +1,4 @@
-﻿using System;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui.Storage;
+﻿using Microsoft.Maui.Controls;
 
 namespace Teku
 {
@@ -30,8 +28,15 @@ namespace Teku
 
             if (AuthService.Register(UsernameEntry.Text, PasswordEntry.Text, role, group))
             {
-                await DisplayAlert("Success", "Registration successful", "OK");
-                await Navigation.PopModalAsync();
+                // Автоматический вход после регистрации
+                if (AuthService.Login(UsernameEntry.Text, PasswordEntry.Text))
+                {
+                    await Shell.Current.GoToAsync("//MainPage");
+                }
+                else
+                {
+                    await DisplayAlert("Error", "Auto-login failed", "OK");
+                }
             }
             else
             {
@@ -41,7 +46,7 @@ namespace Teku
 
         private async void OnCancelClicked(object sender, EventArgs e)
         {
-            await Navigation.PopModalAsync();
+            await Shell.Current.GoToAsync("//LoginPage");
         }
     }
 }

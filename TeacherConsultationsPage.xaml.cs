@@ -1,80 +1,117 @@
 using Microsoft.Maui.Controls;
 using System.Collections.Generic;
 using System.Linq;
-namespace Teku;
+using System.IO;
 
-public partial class TeacherConsultationsPage : ContentPage
+namespace Teku
 {
-	public TeacherConsultationsPage()
-	{
-		InitializeComponent();
-        LoadStudentRequests();
-    }
-
-    private void LoadStudentRequests()
+    public partial class TeacherConsultationsPage : ContentPage
     {
-        RequestsStack.Children.Clear();
+        private static readonly string ConsultationsFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "consultations.txt");
 
-        var teacherConsultations = AppData.Consultations
-            .Where(c => c.Teacher == AuthService.CurrentUser.Username)
-            .ToList();
-
-        if (teacherConsultations.Count == 0)
+        public TeacherConsultationsPage()
         {
-            RequestsStack.Children.Add(new Label
-            {
-                Text = "No consultation requests yet",
-                HorizontalOptions = LayoutOptions.Center,
-                VerticalOptions = LayoutOptions.Center
-            });
-            return;
+            InitializeComponent();
+            LoadStudentRequests();
         }
 
-        foreach (var consultation in teacherConsultations)
+        private List<Consultation> LoadConsultationsFromFile()
         {
-            if (consultation.SignedUpStudents.Count > 0)
+            var consultations = new List<Consultation>();
+
+            if (File.Exists(ConsultationsFilePath))
             {
-                var frame = new Frame
+                foreach (var line in File.ReadAllLines(ConsultationsFilePath))
                 {
-                    CornerRadius = 10,
-                    HasShadow = true,
-                    Padding = 15,
-                    Margin = new Thickness(0, 0, 0, 10)
-                };
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        consultations.Add(Consultation.FromString(line));
+                    }
+                }
+            }
 
-                var stack = new VerticalStackLayout();
+            return consultations;
+        }
 
-                stack.Children.Add(new Label
+        private void LoadStudentRequests()
+        {
+            RequestsStack.Children.Clear();
+
+            var teacherConsultations = LoadConsultationsFromFile()
+                .Where(c => c.Teacher == AuthService.CurrentUser?.Username)
+                .ToList();
+
+            if (!teacherConsultations.Any())
+            {
+                RequestsStack.Children.Add(new Label
                 {
-                    Text = $"Consultation: {consultation.Day} at {consultation.Time}",
-                    FontAttributes = FontAttributes.Bold,
-                    FontSize = 16
+                    Text = "You don't have any consultations yet",
+                    HorizontalOptions = LayoutOptions.Center,
+                    VerticalOptions = LayoutOptions.Center
                 });
+                return;
+            }
 
-                stack.Children.Add(new Label
-                {
-                    Text = $"Room: {consultation.Room}",
-                    FontSize = 14
-                });
+            bool hasRequests = false;
 
-                stack.Children.Add(new Label
+            foreach (var consultation in teacherConsultations)
+            {
+                if (consultation.SignedUpStudents.Count > 0)
                 {
-                    Text = "Students signed up:",
-                    FontAttributes = FontAttributes.Bold,
-                    Margin = new Thickness(0, 10, 0, 0)
-                });
+                    hasRequests = true;
+                    var frame = new Frame
+                    {
+                        CornerRadius = 10,
+                        HasShadow = true,
+                        Padding = 15,
+                        Margin = new Thickness(0, 0, 0, 10),
+                        BackgroundColor = Colors.White
+                    };
 
-                foreach (var student in consultation.SignedUpStudents)
-                {
+                    var stack = new VerticalStackLayout();
+
                     stack.Children.Add(new Label
                     {
-                        Text = $"• {student}",
-                        Margin = new Thickness(10, 0, 0, 0)
+                        Text = $"Consultation: {consultation.Day} at {consultation.Time}",
+                        FontAttributes = FontAttributes.Bold,
+                        FontSize = 16
                     });
-                }
 
-                frame.Content = stack;
-                RequestsStack.Children.Add(frame);
+                    stack.Children.Add(new Label
+                    {
+                        Text = $"Room: {consultation.Room}",
+                        FontSize = 14
+                    });
+
+                    stack.Children.Add(new Label
+                    {
+                        Text = "Students signed up:",
+                        FontAttributes = FontAttributes.Bold,
+                        Margin = new Thickness(0, 10, 0, 0)
+                    });
+
+                    foreach (var student in consultation.SignedUpStudents)
+                    {
+                        stack.Children.Add(new Label
+                        {
+                            Text = $"• {student}",
+                            Margin = new Thickness(10, 0, 0, 0)
+                        });
+                    }
+
+                    frame.Content = stack;
+                    RequestsStack.Children.Add(frame);
+                }
+            }
+
+            if (!hasRequests)
+            {
+                RequestsStack.Children.Add(new Label
+                {
+                    Text = "No students have signed up for your consultations yet",
+                    HorizontalOptions = LayoutOptions.Center,
+                    VerticalOptions = LayoutOptions.Center
+                });
             }
         }
     }

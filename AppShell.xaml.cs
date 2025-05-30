@@ -6,38 +6,44 @@ namespace Teku
     {
         public bool IsLoggedIn => AuthService.CurrentUser?.Role != UserRole.Guest;
         public bool IsTeacher => AuthService.CurrentUser?.Role == UserRole.Teacher;
+        public bool IsStudent => IsLoggedIn && !IsTeacher;
 
         public AppShell()
         {
             InitializeComponent();
             BindingContext = this;
+            RegisterRoutes();
 
-            // Обновляем видимость вкладок при изменении пользователя
             AuthService.UserChanged += OnUserChanged;
+            UpdateTabsVisibility();
+        }
 
-            // Register routes for modal pages
-            Routing.RegisterRoute(nameof(LoginPage), typeof(LoginPage));
-            Routing.RegisterRoute(nameof(RegisterPage), typeof(RegisterPage));
-            Routing.RegisterRoute(nameof(AddConsultationPage), typeof(AddConsultationPage));
+        private void UpdateTabsVisibility()
+        {
+            OnPropertyChanged(nameof(IsLoggedIn));
+            OnPropertyChanged(nameof(IsTeacher));
+            OnPropertyChanged(nameof(IsStudent));
+        }
+
+        private void RegisterRoutes()
+        {
+            Routing.RegisterRoute("MainPage", typeof(MainPage));
+            Routing.RegisterRoute("ProfilePage", typeof(ProfilePage));
+            Routing.RegisterRoute("TeacherConsultationsPage", typeof(TeacherConsultationsPage));
+            Routing.RegisterRoute("LoginPage", typeof(LoginPage));
+            Routing.RegisterRoute("RegisterPage", typeof(RegisterPage));
+            Routing.RegisterRoute("AddConsultationPage", typeof(AddConsultationPage));
         }
 
         private void OnUserChanged()
         {
-            OnPropertyChanged(nameof(IsLoggedIn));
-            OnPropertyChanged(nameof(IsTeacher));
+            MainThread.BeginInvokeOnMainThread(UpdateTabsVisibility);
         }
 
-        protected override void OnNavigating(ShellNavigatingEventArgs args)
+        protected override void OnDisappearing()
         {
-            // Проверка авторизации при переходе на защищенные страницы
-            if (args.Target.Location.OriginalString.Contains(nameof(ProfilePage)) &&
-                AuthService.CurrentUser?.Role == UserRole.Guest)
-            {
-                args.Cancel();
-                Shell.Current.GoToAsync(nameof(LoginPage));
-            }
-
-            base.OnNavigating(args);
+            base.OnDisappearing();
+            AuthService.UserChanged -= OnUserChanged;
         }
     }
 }

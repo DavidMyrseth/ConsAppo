@@ -199,12 +199,6 @@ namespace Teku
                 Margin = new Thickness(0, 10)
             };
 
-            var editButton = new Button
-            {
-                Text = "✏️ Edit",
-                BackgroundColor = Colors.LightGray,
-                Command = new Command(async () => await OnEditConsultationClicked(consultation))
-            };
 
             var deleteButton = new Button
             {
@@ -213,7 +207,6 @@ namespace Teku
                 Command = new Command(() => OnDeleteConsultationClicked(consultation))
             };
 
-            actionsStack.Children.Add(editButton);
             actionsStack.Children.Add(deleteButton);
             stack.Children.Add(actionsStack);
         }
@@ -236,19 +229,6 @@ namespace Teku
             DisplayConsultations();
         }
 
-        private async Task OnEditConsultationClicked(Consultation consultation)
-        {
-            await Navigation.PushModalAsync(new AddConsultationPage((updatedConsultation) =>
-            {
-                var index = _consultations.IndexOf(consultation);
-                if (index >= 0)
-                {
-                    _consultations[index] = updatedConsultation;
-                    SaveConsultations();
-                    DisplayConsultations();
-                }
-            }, consultation));
-        }
 
         private async void OnDeleteConsultationClicked(Consultation consultation)
         {
