@@ -76,7 +76,8 @@ namespace Teku
                 {
                     _consultations = _consultations
                         .Where(c => c.Teacher == AuthService.CurrentUser.Group ||
-                                    c.SignedUpStudents.Contains(AuthService.CurrentUser.Username))
+                                    c.SignedUpStudents.Contains(AuthService.CurrentUser.Username) ||
+                                    c.RequestedStudents.Contains(AuthService.CurrentUser.Username))
                         .ToList();
                 }
 
@@ -189,6 +190,19 @@ namespace Teku
 
             signUpButton.Clicked += (sender, e) => OnSignUpClicked(consultation, signUpButton);
             stack.Children.Add(signUpButton);
+
+            var requestButton = new Button
+            {
+                Text = consultation.RequestedStudents.Contains(AuthService.CurrentUser.Username)
+                    ? "Cancel Request" : "Request Consultation",
+                BackgroundColor = consultation.RequestedStudents.Contains(AuthService.CurrentUser.Username)
+                    ? Colors.OrangeRed : Colors.Orange,
+                TextColor = Colors.White,
+                Margin = new Thickness(0, 5)
+            };
+
+            requestButton.Clicked += (sender, e) => OnRequestConsultationClicked(consultation, requestButton);
+            stack.Children.Add(requestButton);
         }
 
         private void AddTeacherActions(VerticalStackLayout stack, Consultation consultation)
@@ -199,16 +213,78 @@ namespace Teku
                 Margin = new Thickness(0, 10)
             };
 
-
             var deleteButton = new Button
             {
                 Text = "🗑️ Delete",
                 BackgroundColor = Colors.LightPink,
+                TextColor = Colors.Black,
                 Command = new Command(() => OnDeleteConsultationClicked(consultation))
             };
-
             actionsStack.Children.Add(deleteButton);
+
+            if (consultation.RequestedStudents.Any())
+            {
+                var makeAvailableButton = new Button
+                {
+                    Text = "Consultation Available",
+                    BackgroundColor = Colors.LightGreen,
+                    TextColor = Colors.Black,
+                    Command = new Command(() => OnMarkConsultationAvailableClicked(consultation))
+                };
+                actionsStack.Children.Add(makeAvailableButton);
+            }
+
             stack.Children.Add(actionsStack);
+
+            if (consultation.RequestedStudents.Any())
+            {
+                stack.Children.Add(new Label
+                {
+                    Text = "📥 Requested Students:",
+                    FontAttributes = FontAttributes.Bold,
+                    Margin = new Thickness(0, 10, 0, 0)
+                });
+
+                foreach (var student in consultation.RequestedStudents)
+                {
+                    stack.Children.Add(new Label { Text = $"• {student}" });
+                }
+            }
+        }
+
+        private void OnRequestConsultationClicked(Consultation consultation, Button button)
+        {
+            var username = AuthService.CurrentUser.Username;
+            if (consultation.RequestedStudents.Contains(username))
+            {
+                consultation.RequestedStudents.Remove(username);
+                button.Text = "Request Consultation";
+                button.BackgroundColor = Colors.Orange;
+            }
+            else
+            {
+                consultation.RequestedStudents.Add(username);
+                button.Text = "Cancel Request";
+                button.BackgroundColor = Colors.OrangeRed;
+            }
+
+            SaveConsultations();
+            DisplayConsultations();
+        }
+
+        private void OnMarkConsultationAvailableClicked(Consultation consultation)
+        {
+            foreach (var student in consultation.RequestedStudents)
+            {
+                if (!consultation.SignedUpStudents.Contains(student))
+                {
+                    consultation.SignedUpStudents.Add(student);
+                }
+            }
+
+            consultation.RequestedStudents.Clear();
+            SaveConsultations();
+            DisplayConsultations();
         }
 
         private void OnSignUpClicked(Consultation consultation, Button button)
@@ -228,7 +304,6 @@ namespace Teku
             SaveConsultations();
             DisplayConsultations();
         }
-
 
         private async void OnDeleteConsultationClicked(Consultation consultation)
         {
@@ -269,12 +344,14 @@ namespace Teku
         public string Room { get; set; }
         public string Time { get; set; }
         public string Day { get; set; }
-        public List<string> SignedUpStudents { get; set; } = new List<string>();
+        public List<string> SignedUpStudents { get; set; } = new();
+        public List<string> RequestedStudents { get; set; } = new();
 
         public override string ToString()
         {
-            var students = string.Join(",", SignedUpStudents);
-            return $"{Teacher}|{Room}|{Time}|{Day}|{students}";
+            var signed = string.Join(",", SignedUpStudents);
+            var requested = string.Join(",", RequestedStudents);
+            return $"{Teacher}|{Room}|{Time}|{Day}|{signed}|{requested}";
         }
 
         public static Consultation FromString(string line)
@@ -288,6 +365,9 @@ namespace Teku
                 Day = parts[3],
                 SignedUpStudents = parts.Length > 4 && !string.IsNullOrEmpty(parts[4])
                     ? parts[4].Split(',').ToList()
+                    : new List<string>(),
+                RequestedStudents = parts.Length > 5 && !string.IsNullOrEmpty(parts[5])
+                    ? parts[5].Split(',').ToList()
                     : new List<string>()
             };
         }
