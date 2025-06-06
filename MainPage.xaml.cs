@@ -3,13 +3,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Maui;
 
 namespace Teku
 {
     public partial class MainPage : ContentPage
     {
         private List<Consultation> _consultations;
-        private static readonly string ConsultationsFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "consultations.txt");
+        private static readonly string ConsultationsFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "consultations.txt");
 
         public MainPage()
         {
@@ -37,6 +40,18 @@ namespace Teku
             LoadConsultations();
         }
 
+        private void UpdateUIForUserRole()
+        {
+            if (AddConsultationButton == null) return;
+
+            AddConsultationButton.IsVisible = AuthService.CurrentUser.Role == UserRole.Teacher ||
+                                           AuthService.CurrentUser.Role == UserRole.Admin;
+
+            AddConsultationButton.Text = AuthService.CurrentUser.Role == UserRole.Admin
+                ? "Add Consultation (Admin)"
+                : "Add Consultation";
+        }
+
         private void LoadConsultations()
         {
             try
@@ -55,29 +70,35 @@ namespace Teku
                 }
                 else
                 {
+                    // Default consultations
                     _consultations.Add(new Consultation
                     {
                         Teacher = "Mr. Podkopaev",
                         Room = "101",
                         Time = "10:00-12:00",
-                        Day = "Monday"
+                        Day = "Monday",
+                        IsApproved = true
                     });
                     _consultations.Add(new Consultation
                     {
                         Teacher = "Ms. Merkulova",
                         Room = "202",
                         Time = "14:00-16:00",
-                        Day = "Tuesday"
+                        Day = "Tuesday",
+                        IsApproved = true
                     });
                     SaveConsultations();
                 }
 
-                if (AuthService.CurrentUser.Role == UserRole.Student && !string.IsNullOrEmpty(AuthService.CurrentUser.Group))
+                // Filter for students
+                if (AuthService.CurrentUser.Role == UserRole.Student &&
+                   !string.IsNullOrEmpty(AuthService.CurrentUser.Group))
                 {
                     _consultations = _consultations
-                        .Where(c => c.Teacher == AuthService.CurrentUser.Group ||
-                                    c.SignedUpStudents.Contains(AuthService.CurrentUser.Username) ||
-                                    c.RequestedStudents.Contains(AuthService.CurrentUser.Username))
+                        .Where(c => c.IsApproved &&
+                                  (c.Teacher == AuthService.CurrentUser.Group ||
+                                   c.SignedUpStudents.Contains(AuthService.CurrentUser.Username) ||
+                                   c.RequestedStudents.Contains(AuthService.CurrentUser.Username)))
                         .ToList();
                 }
 
@@ -90,88 +111,93 @@ namespace Teku
             }
         }
 
-        private void SaveConsultations()
-        {
-            try
-            {
-                File.WriteAllLines(ConsultationsFilePath, _consultations.Select(c => c.ToString()));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error saving consultations: {ex.Message}");
-                DisplayAlert("Error", "Failed to save consultations", "OK");
-            }
-        }
-
         private void DisplayConsultations()
         {
-            ConsultationsStack.Children.Clear();
+            if (ConsultationsStack == null) return;
 
-            if (!_consultations.Any())
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                ConsultationsStack.Children.Add(new Label
+                ConsultationsStack.Children.Clear();
+
+                if (!_consultations.Any())
                 {
-                    Text = "No consultations available",
-                    HorizontalOptions = LayoutOptions.Center,
-                    VerticalOptions = LayoutOptions.Center,
-                    Margin = new Thickness(0, 20)
-                });
-                return;
-            }
+                    ConsultationsStack.Children.Add(new Label
+                    {
+                        Text = "No consultations available",
+                        HorizontalOptions = LayoutOptions.Center,
+                        VerticalOptions = LayoutOptions.Center,
+                        Margin = new Thickness(0, 20)
+                    });
+                    return;
+                }
 
-            foreach (var consultation in _consultations.OrderBy(c => c.Day).ThenBy(c => c.Time))
-            {
-                var frame = new Frame
+                foreach (var consultation in _consultations.OrderBy(c => c.Day).ThenBy(c => c.Time))
                 {
-                    CornerRadius = 10,
-                    HasShadow = true,
-                    Padding = 15,
-                    Margin = new Thickness(0, 0, 0, 10),
-                    BackgroundColor = GetConsultationColor(consultation)
-                };
+                    var frame = new Frame
+                    {
+                        CornerRadius = 10,
+                        HasShadow = true,
+                        Padding = 15,
+                        Margin = new Thickness(0, 0, 0, 10),
+                        BackgroundColor = GetConsultationColor(consultation)
+                    };
 
-                var stack = new VerticalStackLayout();
+                    var stack = new VerticalStackLayout();
 
-                stack.Children.Add(new Label
-                {
-                    Text = consultation.Teacher,
-                    FontAttributes = FontAttributes.Bold,
-                    FontSize = 16
-                });
-
-                stack.Children.Add(new Label { Text = $"📅 {consultation.Day}" });
-                stack.Children.Add(new Label { Text = $"🕒 {consultation.Time}" });
-                stack.Children.Add(new Label { Text = $"🏫 Room: {consultation.Room}" });
-
-                if (consultation.SignedUpStudents.Any())
-                {
+                    // Consultation info
                     stack.Children.Add(new Label
                     {
-                        Text = $"👥 Signed up: {consultation.SignedUpStudents.Count}",
-                        FontAttributes = FontAttributes.Italic,
+                        Text = consultation.Teacher,
+                        FontAttributes = FontAttributes.Bold,
+                        FontSize = 16
+                    });
+
+                    stack.Children.Add(new Label { Text = $"📅 {consultation.Day}" });
+                    stack.Children.Add(new Label { Text = $"🕒 {consultation.Time}" });
+                    stack.Children.Add(new Label { Text = $"🏫 Room: {consultation.Room}" });
+
+                    // Status label
+                    stack.Children.Add(new Label
+                    {
+                        Text = consultation.IsApproved ? "✅ Approved" : "🟡 Pending Approval",
+                        FontAttributes = FontAttributes.Bold,
+                        TextColor = consultation.IsApproved ? Colors.Green : Colors.Orange,
                         Margin = new Thickness(0, 5)
                     });
-                }
 
-                if (AuthService.CurrentUser.Role == UserRole.Student)
-                {
-                    AddStudentActions(stack, consultation);
-                }
-                else if (AuthService.CurrentUser.Role == UserRole.Teacher)
-                {
-                    AddTeacherActions(stack, consultation);
-                }
+                    // Student count if any
+                    if (consultation.SignedUpStudents.Any())
+                    {
+                        stack.Children.Add(new Label
+                        {
+                            Text = $"👥 Signed up: {consultation.SignedUpStudents.Count}",
+                            FontAttributes = FontAttributes.Italic,
+                            Margin = new Thickness(0, 5)
+                        });
+                    }
 
-                frame.Content = stack;
-                ConsultationsStack.Children.Add(frame);
-            }
+                    // Add buttons based on user role
+                    if (AuthService.CurrentUser.Role == UserRole.Student)
+                    {
+                        AddStudentActions(stack, consultation);
+                    }
+                    else if (AuthService.CurrentUser.Role == UserRole.Teacher ||
+                            AuthService.CurrentUser.Role == UserRole.Admin)
+                    {
+                        AddTeacherActions(stack, consultation);
+                    }
+
+                    frame.Content = stack;
+                    ConsultationsStack.Children.Add(frame);
+                }
+            });
         }
 
         private Color GetConsultationColor(Consultation consultation)
         {
             if (consultation.SignedUpStudents.Contains(AuthService.CurrentUser.Username))
             {
-                return Color.FromArgb("#E3F2FD");
+                return Color.FromArgb("#E3F2FD"); // Light blue for signed up consultations
             }
             return Colors.White;
         }
@@ -213,29 +239,45 @@ namespace Teku
                 Margin = new Thickness(0, 10)
             };
 
+            // Delete button
             var deleteButton = new Button
             {
                 Text = "🗑️ Delete",
                 BackgroundColor = Colors.LightPink,
-                TextColor = Colors.Black,
-                Command = new Command(() => OnDeleteConsultationClicked(consultation))
+                TextColor = Colors.Black
             };
+            deleteButton.Clicked += (sender, e) => OnDeleteConsultationClicked(consultation);
             actionsStack.Children.Add(deleteButton);
 
+            // Accept button (only for unapproved consultations)
+            if (!consultation.IsApproved)
+            {
+                var acceptButton = new Button
+                {
+                    Text = "Accept Consultation",
+                    BackgroundColor = Colors.LightGreen,
+                    TextColor = Colors.Black
+                };
+                acceptButton.Clicked += (sender, e) => OnAcceptConsultationClicked(consultation);
+                actionsStack.Children.Add(acceptButton);
+            }
+
+            // Approve all requests button
             if (consultation.RequestedStudents.Any())
             {
-                var makeAvailableButton = new Button
+                var approveAllButton = new Button
                 {
-                    Text = "Consultation Available",
-                    BackgroundColor = Colors.LightGreen,
-                    TextColor = Colors.Black,
-                    Command = new Command(() => OnMarkConsultationAvailableClicked(consultation))
+                    Text = "Approve All",
+                    BackgroundColor = Colors.LightBlue,
+                    TextColor = Colors.Black
                 };
-                actionsStack.Children.Add(makeAvailableButton);
+                approveAllButton.Clicked += (sender, e) => OnMarkConsultationAvailableClicked(consultation);
+                actionsStack.Children.Add(approveAllButton);
             }
 
             stack.Children.Add(actionsStack);
 
+            // Show requested students if any
             if (consultation.RequestedStudents.Any())
             {
                 stack.Children.Add(new Label
@@ -252,18 +294,48 @@ namespace Teku
             }
         }
 
+        private void OnAcceptConsultationClicked(Consultation consultation)
+        {
+            consultation.IsApproved = true;
+            SaveConsultations();
+            DisplayConsultations();
+            DisplayAlert("Success", "Consultation has been approved and is now visible to students", "OK");
+        }
+
+        private async void OnAddConsultationClicked(object sender, EventArgs e)
+        {
+            await Navigation.PushModalAsync(new AddConsultationPage((newConsultation) =>
+            {
+                _consultations.Add(newConsultation);
+                SaveConsultations();
+                DisplayConsultations();
+            }));
+        }
+
+        private void SaveConsultations()
+        {
+            try
+            {
+                File.WriteAllLines(ConsultationsFilePath, _consultations.Select(c => c.ToString()));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving consultations: {ex.Message}");
+                DisplayAlert("Error", "Failed to save consultations", "OK");
+            }
+        }
+
         private void OnRequestConsultationClicked(Consultation consultation, Button button)
         {
-            var username = AuthService.CurrentUser.Username;
-            if (consultation.RequestedStudents.Contains(username))
+            if (consultation.RequestedStudents.Contains(AuthService.CurrentUser.Username))
             {
-                consultation.RequestedStudents.Remove(username);
+                consultation.RequestedStudents.Remove(AuthService.CurrentUser.Username);
                 button.Text = "Request Consultation";
                 button.BackgroundColor = Colors.Orange;
             }
             else
             {
-                consultation.RequestedStudents.Add(username);
+                consultation.RequestedStudents.Add(AuthService.CurrentUser.Username);
                 button.Text = "Cancel Request";
                 button.BackgroundColor = Colors.OrangeRed;
             }
@@ -318,58 +390,6 @@ namespace Teku
                 SaveConsultations();
                 DisplayConsultations();
             }
-        }
-
-        private async void OnAddConsultationClicked(object sender, EventArgs e)
-        {
-            await Navigation.PushModalAsync(new AddConsultationPage((newConsultation) =>
-            {
-                _consultations.Add(newConsultation);
-                SaveConsultations();
-                DisplayConsultations();
-            }));
-        }
-
-        private void UpdateUIForUserRole()
-        {
-            AddConsultationButton.IsVisible = AuthService.CurrentUser.Role == UserRole.Teacher;
-            AddConsultationButton.Text = AuthService.CurrentUser.Role == UserRole.Admin
-                ? "Add Consultation (Admin)" : "Add Consultation";
-        }
-    }
-
-    public class Consultation
-    {
-        public string Teacher { get; set; }
-        public string Room { get; set; }
-        public string Time { get; set; }
-        public string Day { get; set; }
-        public List<string> SignedUpStudents { get; set; } = new();
-        public List<string> RequestedStudents { get; set; } = new();
-
-        public override string ToString()
-        {
-            var signed = string.Join(",", SignedUpStudents);
-            var requested = string.Join(",", RequestedStudents);
-            return $"{Teacher}|{Room}|{Time}|{Day}|{signed}|{requested}";
-        }
-
-        public static Consultation FromString(string line)
-        {
-            var parts = line.Split('|');
-            return new Consultation
-            {
-                Teacher = parts[0],
-                Room = parts[1],
-                Time = parts[2],
-                Day = parts[3],
-                SignedUpStudents = parts.Length > 4 && !string.IsNullOrEmpty(parts[4])
-                    ? parts[4].Split(',').ToList()
-                    : new List<string>(),
-                RequestedStudents = parts.Length > 5 && !string.IsNullOrEmpty(parts[5])
-                    ? parts[5].Split(',').ToList()
-                    : new List<string>()
-            };
         }
     }
 }
