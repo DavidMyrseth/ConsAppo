@@ -91,14 +91,10 @@ namespace Teku
                 }
 
                 // Filter for students
-                if (AuthService.CurrentUser.Role == UserRole.Student &&
-                   !string.IsNullOrEmpty(AuthService.CurrentUser.Group))
+                if (AuthService.CurrentUser.Role == UserRole.Student)
                 {
                     _consultations = _consultations
-                        .Where(c => c.IsApproved &&
-                                  (c.Teacher == AuthService.CurrentUser.Group ||
-                                   c.SignedUpStudents.Contains(AuthService.CurrentUser.Username) ||
-                                   c.RequestedStudents.Contains(AuthService.CurrentUser.Username)))
+                        .Where(c => c.IsApproved)
                         .ToList();
                 }
 
